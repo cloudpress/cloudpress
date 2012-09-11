@@ -1,7 +1,7 @@
 What is Cloudpress?
 ===================
 
-Cloudpress is [Octopress](https://github.com/imathis/octopress) with integrated support for deployment to amazon web service's cloudfront backed by an s3 origin.
+Cloudpress is [Octopress](https://github.com/imathis/octopress) with integrated support for deployment to amazon web service's cloudfront backed by an s3 origin using route53 for dns.
 
 How Do I Use This?
 ------------------
