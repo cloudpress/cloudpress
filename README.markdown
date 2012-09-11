@@ -13,7 +13,7 @@ The blog post [Host An Octopress Based Blog On Cloudfront With An S3 Origin With
 ## How Do I Update Cloudpress With The Latest Changes From Octopress?
 
 `
-git remote add upstream https://github.com/imathis/octopress.git
+git remote add upstream https://github.com/imathis/octopress.git  
 git fetch upstream
 `
 
