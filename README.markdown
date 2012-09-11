@@ -8,8 +8,8 @@ How Do I Use This?
 
 For most operations, except for deployment, refer to the [Octopress documentation](http://octopress.org/docs).
 
-How Do I Deploy To Cloudfront Backed By S3?
--------------------------------------------
+How Do I Deploy To Cloudfront Backed By S3 Using Route53 For DNS?
+-----------------------------------------------------------------
 
 The blog post [Host An Octopress Based Blog On Cloudfront With An S3 Origin With A Custom Domain Using Route53 For DNS by Using Cloudpress](http://www.david-j-nelson.com/coming_soon) has thorough instructions for how to do this.
 
