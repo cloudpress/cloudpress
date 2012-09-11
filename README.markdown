@@ -2,6 +2,21 @@
 
 Cloudpress is [Octopress](https://github.com/imathis/octopress) with integrated support for deployment to amazon web service's cloudfront backed by an s3 origin.
 
+## How Do I Use This?
+
+For most operations, except for deployment, refer to the [Octopress documentation](http://octopress.org/docs).
+
+## How Do I Deploy To Cloudfront Backed By S3?
+
+The blog post [Host An Octopress Based Blog On Cloudfront With An S3 Origin With A Custom Domain Using Route53 For DNS by Using Cloudpress](http://www.david-j-nelson.com/coming_soon) has thorough instructions for how to do this.
+
+## How Do I Update Cloudpress With The Latest Changes From Octopress?
+
+`
+git remote add upstream https://github.com/imathis/octopress.git
+git fetch upstream
+`
+
 ## License
 (The MIT License)
 
