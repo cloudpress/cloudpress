@@ -15,6 +15,10 @@ The blog post [Host An Octopress Based Blog On Cloudfront With An S3 Origin With
 `git remote add upstream https://github.com/imathis/octopress.git`  
 `git fetch upstream`
 
+## Why Not Just Submit A Pull Request To Octopress For This?
+
+There was a [pull request submitted by the original author](https://github.com/imathis/octopress/pull/175), but it was declined.
+
 ## License
 (The MIT License)
 
