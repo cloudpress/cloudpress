@@ -11,7 +11,7 @@ The blog post [Host An Octopress Based Blog On Cloudfront With An S3 Origin With
 Why Not Just Submit A Pull Request To Octopress For This?
 ---------------------------------------------------------
 
-There was a [pull request submitted by the original author](https://github.com/imathis/octopress/pull/175), but it was declined.
+There was a [pull request submitted by the original author](https://github.com/imathis/octopress/pull/175), but it was declined. When I forked the fork which was used to do the original pull request, it didn't quite work out of the box.  I had to do some refactoring and debugging of the rakefile to get everything to work.  I also had to add route53 functionality.
 
 License
 -------
