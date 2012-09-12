@@ -97,8 +97,7 @@ google_analytics_tracking_id:
     
 # AWS
 aws_access_key_id: 
-aws_secret_access_key: 
-aws_s3_bucket:
+aws_secret_access_key:
 
 # Facebook Like
 facebook_like: false
