@@ -251,7 +251,7 @@ namespace :aws do
     return {
       :access_key_id      => config['aws_access_key_id'],
       :secret_access_key  => config['aws_secret_access_key'],
-      :s3_bucket          => URI.parse(config['url']).host
+      :s3_bucket          => config['aws_s3_bucket']
     }
   end
   
