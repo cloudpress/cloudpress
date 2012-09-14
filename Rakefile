@@ -359,7 +359,7 @@ namespace :aws do
     return paths_to_invalidate
   end
 
-  def s3_bucket_exists(acf)
+  def s3_bucket_cname_exists_in_cloudfront_distribution(acf)
     acf = create_cloudfront_facade()
     distributions = acf.list_distributions
 
@@ -469,7 +469,7 @@ namespace :aws do
   desc "Deploy website to Amazon CloudFront"
   task :cloudfront do
     acf = create_cloudfront_facade()
-    found_bucket_cname = s3_bucket_exists(acf)
+    found_bucket_cname = s3_bucket_cname_exists_in_cloudfront_distribution(acf)
     distribution = create_cloudfront_distribution_or_return_existing(acf, found_bucket_cname)
     paths_to_invalidate = deploy_modified_files_to_s3_and_return_list_of_paths_to_invalidate(public_dir)
     invalidate_modified_cloudfront_paths(distribution, paths_to_invalidate, acf)
