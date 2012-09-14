@@ -10,27 +10,27 @@ require 'fog' # we need appfog's aws ruby sdk since right_aws doesn't support se
 
 ## -- Rsync Deploy config -- ##
 # Be sure your public key is listed in your server's ~/.ssh/authorized_keys file
-ssh_user       = "user@domain.com"
-ssh_port       = "22"
-document_root  = "~/website.com/"
-rsync_delete   = true
+ssh_user = "user@domain.com"
+ssh_port = "22"
+document_root = "~/website.com/"
+rsync_delete = true
 deploy_default = "rsync"
 
 # This will be configured for you when you run config_deploy
-deploy_branch  = "gh-pages"
+deploy_branch = "gh-pages"
 
 ## -- Misc Configs -- ##
 
-public_dir      = "public"    # compiled site directory
-source_dir      = "source"    # source file directory
-blog_index_dir  = 'source'    # directory for your blog's index page (if you put your index in source/blog/index.html, set this to 'source/blog')
-deploy_dir      = "_deploy"   # deploy directory (for Github pages deployment)
-stash_dir       = "_stash"    # directory to stash posts for speedy generation
-posts_dir       = "_posts"    # directory for blog files
-themes_dir      = ".themes"   # directory for blog files
-new_post_ext    = "markdown"  # default new post file extension when using the new_post task
-new_page_ext    = "markdown"  # default new page file extension when using the new_page task
-server_port     = "4000"      # port for preview server eg. localhost:4000
+public_dir = "public" # compiled site directory
+source_dir = "source" # source file directory
+blog_index_dir = 'source' # directory for your blog's index page (if you put your index in source/blog/index.html, set this to 'source/blog')
+deploy_dir = "_deploy" # deploy directory (for Github pages deployment)
+stash_dir = "_stash" # directory to stash posts for speedy generation
+posts_dir = "_posts" # directory for blog files
+themes_dir = ".themes" # directory for blog files
+new_post_ext = "markdown" # default new post file extension when using the new_post task
+new_page_ext = "markdown" # default new page file extension when using the new_page task
+server_port = "4000" # port for preview server eg. localhost:4000
 
 
 desc "Initial setup for Octopress: copies the default theme into the path of Jekyll's generator. Rake install defaults to rake install[classic] to install a different theme run rake install[some_theme_name]"
@@ -66,7 +66,7 @@ task :watch do
   raise "### You haven't set anything up yet. First run `rake install` to set up an Octopress theme." unless File.directory?(source_dir)
   puts "Starting to watch source with Jekyll and Compass."
   system "compass compile --css-dir #{source_dir}/stylesheets" unless File.exist?("#{source_dir}/stylesheets/screen.css")
-  jekyllPid = Process.spawn({"OCTOPRESS_ENV"=>"preview"}, "jekyll --auto")
+  jekyllPid = Process.spawn({"OCTOPRESS_ENV" => "preview"}, "jekyll --auto")
   compassPid = Process.spawn("compass watch")
 
   trap("INT") {
@@ -82,7 +82,7 @@ task :preview do
   raise "### You haven't set anything up yet. First run `rake install` to set up an Octopress theme." unless File.directory?(source_dir)
   puts "Starting to watch source with Jekyll and Compass. Starting Rack on port #{server_port}"
   system "compass compile --css-dir #{source_dir}/stylesheets" unless File.exist?("#{source_dir}/stylesheets/screen.css")
-  jekyllPid = Process.spawn({"OCTOPRESS_ENV"=>"preview"}, "jekyll --auto")
+  jekyllPid = Process.spawn({"OCTOPRESS_ENV" => "preview"}, "jekyll --auto")
   compassPid = Process.spawn("compass watch")
   rackupPid = Process.spawn("rackup --port #{server_port}")
 
@@ -109,7 +109,7 @@ task :new_post, :title do |t, args|
   open(filename, 'w') do |post|
     post.puts "---"
     post.puts "layout: post"
-    post.puts "title: \"#{title.gsub(/&/,'&amp;')}\""
+    post.puts "title: \"#{title.gsub(/&/, '&amp;')}\""
     post.puts "date: #{Time.now.strftime('%Y-%m-%d %H:%M')}"
     post.puts "comments: true"
     post.puts "categories: "
@@ -124,15 +124,15 @@ task :new_page, :filename do |t, args|
   args.with_defaults(:filename => 'new-page')
   page_dir = [source_dir]
   if args.filename.downcase =~ /(^.+\/)?(.+)/
-    filename, dot, extension = $2.rpartition('.').reject(&:empty?)         # Get filename and extension
+    filename, dot, extension = $2.rpartition('.').reject(&:empty?) # Get filename and extension
     title = filename
-    page_dir.concat($1.downcase.sub(/^\//, '').split('/')) unless $1.nil?  # Add path to page_dir Array
+    page_dir.concat($1.downcase.sub(/^\//, '').split('/')) unless $1.nil? # Add path to page_dir Array
     if extension.nil?
       page_dir << filename
       filename = "index"
     end
     extension ||= new_page_ext
-    page_dir = page_dir.map! { |d| d = d.to_url }.join('/')                # Sanitize path
+    page_dir = page_dir.map! { |d| d = d.to_url }.join('/') # Sanitize path
     filename = filename.downcase.to_url
 
     mkdir_p page_dir
@@ -181,7 +181,7 @@ task :update_style, :theme do |t, args|
   theme = args.theme || 'classic'
   if File.directory?("sass.old")
     puts "removed existing sass.old directory"
-    rm_r "sass.old", :secure=>true
+    rm_r "sass.old", :secure => true
   end
   mv "sass", "sass.old"
   puts "## Moved styles into sass.old/"
@@ -195,15 +195,15 @@ task :update_source, :theme do |t, args|
   theme = args.theme || 'classic'
   if File.directory?("#{source_dir}.old")
     puts "## Removed existing #{source_dir}.old directory"
-    rm_r "#{source_dir}.old", :secure=>true
+    rm_r "#{source_dir}.old", :secure => true
   end
   mkdir "#{source_dir}.old"
   cp_r "#{source_dir}/.", "#{source_dir}.old"
   puts "## Copied #{source_dir} into #{source_dir}.old/"
-  cp_r "#{themes_dir}/"+theme+"/source/.", source_dir, :remove_destination=>true
-  cp_r "#{source_dir}.old/_includes/custom/.", "#{source_dir}/_includes/custom/", :remove_destination=>true
+  cp_r "#{themes_dir}/"+theme+"/source/.", source_dir, :remove_destination => true
+  cp_r "#{source_dir}.old/_includes/custom/.", "#{source_dir}/_includes/custom/", :remove_destination => true
   cp "#{source_dir}.old/favicon.png", source_dir
-  mv "#{source_dir}/index.html", "#{blog_index_dir}", :force=>true if blog_index_dir != source_dir
+  mv "#{source_dir}/index.html", "#{blog_index_dir}", :force => true if blog_index_dir != source_dir
   cp "#{source_dir}.old/index.html", source_dir if blog_index_dir != source_dir && File.exists?("#{source_dir}.old/index.html")
   puts "## Updated #{source_dir} ##"
 end
@@ -266,7 +266,7 @@ namespace :aws do
     logger.level = Logger::WARN
     config = YAML::load(File.open('_config.yml'))
 
-    s3 = RightAws::S3.new(config['aws_access_key_id'], config['aws_secret_access_key'], { :logger => logger })
+    s3 = RightAws::S3.new(config['aws_access_key_id'], config['aws_secret_access_key'], {:logger => logger})
 
     return s3
   end
@@ -276,7 +276,7 @@ namespace :aws do
     logger.level = Logger::WARN
     config = YAML::load(File.open('_config.yml'))
 
-    acf = RightAws::AcfInterface.new(config['aws_access_key_id'], config['aws_secret_access_key'], { :logger => logger })
+    acf = RightAws::AcfInterface.new(config['aws_access_key_id'], config['aws_secret_access_key'], {:logger => logger})
 
     return acf
   end
@@ -286,7 +286,7 @@ namespace :aws do
 
     # TODO: consider other regions as a config option
     storage = Fog::Storage.new({
-                                   :provider   => 'AWS',
+                                   :provider => 'AWS',
                                    :aws_access_key_id => config['aws_access_key_id'],
                                    :aws_secret_access_key => config['aws_secret_access_key'],
                                    :region => 'us-east-1'
@@ -299,14 +299,15 @@ namespace :aws do
     logger = Logger.new(STDOUT)
     logger.level = Logger::WARN
 
-    route53 = RightAws::Route53Interface.new(config['aws_access_key_id'], config['aws_secret_access_key'], { :logger => logger })
+    route53 = RightAws::Route53Interface.new(config['aws_access_key_id'], config['aws_secret_access_key'], {:logger => logger})
 
     return route53
   end
 
-  def create_bucket_as_website(s3_bucket)
+  def create_bucket_as_website()
     puts "## Creating S3 Bucket"
 
+    s3_bucket = get_s3_bucket_by_parsing__host_from_url()
     s3 = create_s3_facade()
     s3.bucket(s3_bucket, true, 'public-read')
 
@@ -320,7 +321,7 @@ namespace :aws do
     s3 = create_s3_facade()
     return s3.bucket(s3_bucket, true, 'public-read')
   end
-  
+
   def deploy_modified_files_to_s3_and_return_list_of_paths_to_invalidate(public_dir)
     s3_bucket = get_s3_bucket_by_parsing__host_from_url()
     paths_to_invalidate = []
@@ -340,8 +341,8 @@ namespace :aws do
           puts "Deploying file #{remote_file}"
 
           bucket.put(key, open(file), {}, 'public-read', {
-            'content-type'        => MIME::Types.type_for(file).first.to_s,
-            'x-amz-storage-class' => 'REDUCED_REDUNDANCY'
+              'content-type' => MIME::Types.type_for(file).first.to_s,
+              'x-amz-storage-class' => 'REDUCED_REDUNDANCY'
           })
 
           any_files_deployed = true
@@ -351,7 +352,7 @@ namespace :aws do
       end
     end
 
-    if(!any_files_deployed) then
+    if (!any_files_deployed) then
       puts 'No Files Changed.  Your blog is already up to date.'
       exit
     end
@@ -371,29 +372,29 @@ namespace :aws do
 
   def get_distribution_that_matches_s3_bucket_from_list_of_distributions(s3_bucket, distributions)
     distributions.each { |distribution|
-      if(distribution[:cnames] != nil && distribution[:cnames].include?(s3_bucket)) then
+      if (distribution[:cnames] != nil && distribution[:cnames].include?(s3_bucket)) then
         return distribution
       end
     }
 
     return nil
   end
-  
+
   def create_cloudfront_distribution(acf)
     puts "Creating Amazon CloudFront distribution."
-  
+
     s3_bucket = get_s3_bucket_by_parsing__host_from_url()
 
     config = {
-	  :enabled              => true,
-	  :comment              => "http://#{s3_bucket}",
-	  :cnames               => [ s3_bucket ],
-	  :s3_origin            => {
-	    :dns_name           => "#{s3_bucket}.s3.amazonaws.com"
-	  },
-	  :default_root_object  => 'index.html'
+        :enabled => true,
+        :comment => "http://#{s3_bucket}",
+        :cnames => [s3_bucket],
+        :s3_origin => {
+            :dns_name => "#{s3_bucket}.s3.amazonaws.com"
+        },
+        :default_root_object => 'index.html'
     }
-  
+
     distributionID = acf.create_distribution(config)[:aws_id]
 
     while (acf.get_distribution(distributionID)[:status] == 'InProgress')
@@ -401,15 +402,15 @@ namespace :aws do
       sleep 60
     end
   end
-  
+
   def load_existing_cloudfront_distribution(acf)
     s3_bucket = get_s3_bucket_by_parsing__host_from_url()
-  	distributions = acf.list_distributions
-  	distribution = get_distribution_that_matches_s3_bucket_from_list_of_distributions(s3_bucket, distributions)
+    distributions = acf.list_distributions
+    distribution = get_distribution_that_matches_s3_bucket_from_list_of_distributions(s3_bucket, distributions)
 
     return distribution
   end
-  
+
   def strip_www_dot_from_front_of_s3_bucket()
     s3_bucket = get_s3_bucket_by_parsing__host_from_url()
     s3_bucket_without_www_dot = s3_bucket.gsub(/www\./, '')
@@ -422,7 +423,7 @@ namespace :aws do
 
     route53 = create_route_53_facade()
     s3_bucket_without_www_dot = strip_www_dot_from_front_of_s3_bucket()
-    create_hosted_zone_response_hash = route53.create_hosted_zone({:name   => s3_bucket_without_www_dot + '.'})
+    create_hosted_zone_response_hash = route53.create_hosted_zone({:name => s3_bucket_without_www_dot + '.'})
     hosted_zone_id = create_hosted_zone_response_hash[:aws_id]
 
     puts "These are the four fully qualified domain names you need to enter into your domain registrar's nameserver settings for your domain:"
@@ -435,7 +436,7 @@ namespace :aws do
 
     return hosted_zone_id
   end
-  
+
   def invalidate_modified_cloudfront_paths(distribution, paths_to_invalidate, acf)
     if (paths_to_invalidate != nil && !paths_to_invalidate.empty?) then
       puts "Invalidating CloudFront caches"
@@ -444,21 +445,21 @@ namespace :aws do
     end
   end
 
-  def create_route_53_resource_record_sets(hosted_zone_id, cloudfront_distribution_url) 
+  def create_route_53_resource_record_sets(hosted_zone_id, cloudfront_distribution_url)
     route53 = create_route_53_facade()
     s3_bucket = get_s3_bucket_by_parsing__host_from_url()
     s3_bucket_without_www_dot = strip_www_dot_from_front_of_s3_bucket()
 
-    resource_record_sets = [ { :name => s3_bucket + '.',
-                               :type => 'CNAME',
-                               :ttl => 600,
-                               :resource_records => cloudfront_distribution_url },
-                             { :name => s3_bucket_without_www_dot + '.',
-                               :type => 'A',
-                               :ttl => 600,
-                               :resource_records => ['174.129.25.170'] # use wwwizer to redirect to www
-                             }
-                           ]
+    resource_record_sets = [{:name => s3_bucket + '.',
+                             :type => 'CNAME',
+                             :ttl => 600,
+                             :resource_records => cloudfront_distribution_url},
+                            {:name => s3_bucket_without_www_dot + '.',
+                             :type => 'A',
+                             :ttl => 600,
+                             :resource_records => ['174.129.25.170'] # use wwwizer to redirect to www
+                            }
+    ]
 
     route53.create_resource_record_sets(hosted_zone_id, resource_record_sets)
   end
@@ -469,9 +470,10 @@ namespace :aws do
     paths_to_invalidate = deploy_modified_files_to_s3_and_return_list_of_paths_to_invalidate(public_dir)
     found_bucket_cname = s3_bucket_cname_exists_in_cloudfront_distribution(acf)
 
-	if(!found_bucket_cname) then
-	  create_cloudfront_distribution(acf)
-	  distribution = load_existing_cloudfront_distribution(acf)
+    if (!found_bucket_cname) then
+      create_bucket_as_website()
+      create_cloudfront_distribution(acf)
+      distribution = load_existing_cloudfront_distribution(acf)
       hosted_zone_id = create_route_53_hosted_zone()
       create_route_53_resource_record_sets(hosted_zone_id, distribution[:domain_name])
     else
@@ -541,7 +543,7 @@ task :setup_github_pages, :repo do |t, args|
   if args.repo
     repo_url = args.repo
   else
-    puts "Enter the read/write url for your repository" 
+    puts "Enter the read/write url for your repository"
     puts "(For example, 'git@github.com:your_username/your_username.github.com)"
     repo_url = get_stdin("Repository url: ")
   end
@@ -607,7 +609,7 @@ end
 
 def ask(message, valid_options)
   if valid_options
-    answer = get_stdin("#{message} #{valid_options.to_s.gsub(/"/, '').gsub(/, /,'/')} ") while !valid_options.include?(answer)
+    answer = get_stdin("#{message} #{valid_options.to_s.gsub(/"/, '').gsub(/, /, '/')} ") while !valid_options.include?(answer)
   else
     answer = get_stdin(message)
   end
