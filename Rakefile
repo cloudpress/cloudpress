@@ -379,37 +379,37 @@ namespace :aws do
     return nil
   end
   
-  def create_cloudfront_distribution_or_return_existing(acf, found_bucket_cname)
-    distributions = acf.list_distributions
-
+  def create_cloudfront_distribution(acf)
+    puts "Creating Amazon CloudFront distribution."
+  
     s3_bucket = get_s3_bucket_by_parsing__host_from_url()
 
-    distribution = get_distribution_that_matches_s3_bucket_from_list_of_distributions(s3_bucket, distributions)
+    config = {
+	  :enabled              => true,
+	  :comment              => "http://#{s3_bucket}",
+	  :cnames               => [ s3_bucket ],
+	  :s3_origin            => {
+	    :dns_name           => "#{s3_bucket}.s3.amazonaws.com"
+	  },
+	  :default_root_object  => 'index.html'
+    }
+  
+    acf.create_distribution(config)
 
-    if (!found_bucket_cname) then
-      puts "Creating Amazon CloudFront distribution."
-      config = {
-        :enabled              => true,
-        :comment              => "http://#{s3_bucket}",
-        :cnames               => [ s3_bucket ],
-        :s3_origin            => {
-          :dns_name           => "#{s3_bucket}.s3.amazonaws.com"
-        },
-        :default_root_object  => 'index.html'
-      }
-      distributionID = acf.create_distribution(config)[:aws_id]
-
-      while (acf.get_distribution(distributionID)[:status] == 'InProgress')
-        puts "Waiting for CloudFront distribution to be created.  This can take up to 30 minutes to complete.  Will check again in 60 seconds..."
-        sleep 60
-      end
-
-      puts "Distribution #{distributionID} created and ready to serve your blog"
+    while (acf.get_distribution(distributionID)[:status] == 'InProgress')
+      puts "Waiting for CloudFront distribution to be created.  This can take up to 30 minutes to complete.  Will check again in 60 seconds..."
+      sleep 60
     end
+  end
+  
+  def load_existing_cloudfront_distribution(acf)
+    s3_bucket = get_s3_bucket_by_parsing__host_from_url()
+  	distributions = acf.list_distributions
+  	distribution = get_distribution_that_matches_s3_bucket_from_list_of_distributions(s3_bucket, distributions)
 
     return distribution
   end
-
+  
   def strip_www_dot_from_front_of_s3_bucket()
     s3_bucket = get_s3_bucket_by_parsing__host_from_url()
     s3_bucket_without_www_dot = s3_bucket.gsub(/www\./, '')
@@ -421,11 +421,8 @@ namespace :aws do
     puts 'Creating Route53 Hosted Zone And Resource Record Sets'
 
     route53 = create_route_53_facade()
-
     s3_bucket_without_www_dot = strip_www_dot_from_front_of_s3_bucket()
-
     create_hosted_zone_response_hash = route53.create_hosted_zone({:name   => s3_bucket_without_www_dot + '.'})
-
     hosted_zone_id = create_hosted_zone_response_hash[:aws_id]
 
     puts "These are the four fully qualified domain names you need to enter into your domain registrar's nameserver settings for your domain:"
@@ -468,17 +465,17 @@ namespace :aws do
 
   desc "Deploy website to Amazon CloudFront"
   task :cloudfront do
-    distribution = nil
     acf = create_cloudfront_facade()
     paths_to_invalidate = deploy_modified_files_to_s3_and_return_list_of_paths_to_invalidate(public_dir)
     found_bucket_cname = s3_bucket_cname_exists_in_cloudfront_distribution(acf)
-    
-    if(!found_bucket_cname) then
+
+	if(!found_bucket_cname) then
+	  distribution = create_cloudfront_distribution(acf)
       hosted_zone_id = create_route_53_hosted_zone()
-      distribution = create_cloudfront_distribution_or_return_existing(acf, found_bucket_cname)
       create_route_53_resource_record_sets(hosted_zone_id, distribution[:domain_name])
     else
       # no need to invdalidate cloudfront cache on first transfer
+      distribution = load_existing_cloudfront_distribution(acf)
       invalidate_modified_cloudfront_paths(distribution, paths_to_invalidate, acf)
     end
   end
