@@ -15,6 +15,7 @@ group :development do
   gem 'liquid', '~> 2.3.0'
   gem 'right_aws', '~> 3.0.4'
   gem 'mime-types', '~> 1.19'
+  gem 'fog', '~> 1.5.0'
 end
 
 gem 'sinatra', '~> 1.3.2'

@@ -5,6 +5,8 @@ require "right_aws"
 require "digest/md5"
 require "mime/types"
 require "uri"
+require 'pp'
+require 'fog' # we need appfog's aws ruby sdk since right_aws doesn't support setting an s3 bucket as a website yet
 
 ## -- Rsync Deploy config -- ##
 # Be sure your public key is listed in your server's ~/.ssh/authorized_keys file
@@ -244,52 +246,148 @@ task :rsync do
   ok_failed system("rsync -avze 'ssh -p #{ssh_port}' #{exclude} #{"--delete" unless rsync_delete == false} #{public_dir}/ #{ssh_user}:#{document_root}")
 end
 
-namespace :aws do 
-  
-  def aws_init
+namespace :aws do
+
+  def get_s3_bucket_by_parsing__host_from_url()
     config = YAML::load(File.open('_config.yml'))
-    return {
-      :access_key_id      => config['aws_access_key_id'],
-      :secret_access_key  => config['aws_secret_access_key'],
-      :s3_bucket          => config['aws_s3_bucket']
-    }
+    url = config['url']
+    uri = URI.parse(url)
+    host = uri.host
+
+    if !host.match(/^www\./)
+      raise 'url in _config.yml must start with www.'
+    end
+
+    return host
   end
-  
-  def s3_deploy(aws_access_key_id, aws_secret_access_key, s3_bucket, public_dir)
+
+  def create_s3_facade()
     logger = Logger.new(STDOUT)
     logger.level = Logger::WARN
-    s3 = RightAws::S3.new(aws_access_key_id, aws_secret_access_key, { :logger => logger })
+    config = YAML::load(File.open('_config.yml'))
+
+    s3 = RightAws::S3.new(config['aws_access_key_id'], config['aws_secret_access_key'], { :logger => logger })
+
+    return s3
+  end
+
+  def create_cloudfront_facade()
+    logger = Logger.new(STDOUT)
+    logger.level = Logger::WARN
+    config = YAML::load(File.open('_config.yml'))
+
+    acf = RightAws::AcfInterface.new(config['aws_access_key_id'], config['aws_secret_access_key'], { :logger => logger })
+
+    return acf
+  end
+
+  def create_appfog_s3_facade()
+    config = YAML::load(File.open('_config.yml'))
+
+    # TODO: consider other regions as a config option
+    storage = Fog::Storage.new({
+                                   :provider   => 'AWS',
+                                   :aws_access_key_id => config['aws_access_key_id'],
+                                   :aws_secret_access_key => config['aws_secret_access_key'],
+                                   :region => 'us-east-1'
+                               })
+    return storage
+  end
+
+  def create_route_53_facade()
+    config = YAML::load(File.open('_config.yml'))
+    logger = Logger.new(STDOUT)
+    logger.level = Logger::WARN
+
+    route53 = RightAws::Route53Interface.new(config['aws_access_key_id'], config['aws_secret_access_key'], { :logger => logger })
+
+    return route53
+  end
+
+  def create_bucket_as_website(s3_bucket)
+    puts "## Creating S3 Bucket"
+
+    s3 = create_s3_facade()
+    s3.bucket(s3_bucket, true, 'public-read')
+
+    storage = create_appfog_s3_facade()
+    storage.put_bucket_website(s3_bucket, "index.html", :key => "404.html")
+
+    puts "\n## Amazon S3 Bucket Creation Complete"
+  end
+
+  def retrieve_s3_bucket(s3_bucket)
+    s3 = create_s3_facade()
+    return s3.bucket(s3_bucket, true, 'public-read')
+  end
+  
+  def deploy_modified_files_to_s3_and_return_list_of_paths_to_invalidate(public_dir)
+    s3_bucket = get_s3_bucket_by_parsing__host_from_url()
     paths_to_invalidate = []
-    # Retreive bucket or create it if not available
-    bucket = s3.bucket(s3_bucket, true, 'public-read')
+    any_files_deployed = false
+
+    bucket = retrieve_s3_bucket(s3_bucket)
+
+    puts 'Calculating modified files between local disk and s3.  This may take a minute...'
+
     Dir.glob("#{public_dir}/**/*").each do |file|
       if File.file?(file)
+
         remote_file = file.gsub("#{public_dir}/", "")
         key = bucket.key(remote_file, true)
+
         if !key || (key.e_tag != ("\"" + Digest::MD5.hexdigest(File.read(file))) + "\"")
           puts "Deploying file #{remote_file}"
+
           bucket.put(key, open(file), {}, 'public-read', {
             'content-type'        => MIME::Types.type_for(file).first.to_s,
             'x-amz-storage-class' => 'REDUCED_REDUNDANCY'
           })
+
+          any_files_deployed = true
+
           paths_to_invalidate << "/#{remote_file}"
         end
       end
     end
+
+    if(!any_files_deployed) then
+      puts 'No Files Changed.  Your blog is already up to date.'
+      exit
+    end
+
     return paths_to_invalidate
   end
-  
-  def cloudfront_init(aws_access_key_id, aws_secret_access_key, s3_bucket)
-    puts "Checking Amazon CloudFront environment"
-    logger = Logger.new(STDOUT)
-    logger.level = Logger::WARN
-    acf = RightAws::AcfInterface.new(aws_access_key_id, aws_secret_access_key, { :logger => logger })
+
+  def s3_bucket_exists(acf)
+    acf = create_cloudfront_facade()
     distributions = acf.list_distributions
-    # Locate distribution by CNAME
-    distributions = distributions.select { |distribution| distribution[:cnames].include?(s3_bucket) }
-    # Create distribution if not found
-    if (distributions.empty?) then
-      puts "Creating Amazon CloudFront distribution... This usually requires a few minutes, please be patient!"
+
+    s3_bucket = get_s3_bucket_by_parsing__host_from_url()
+    distribution = get_distribution_that_matches_s3_bucket_from_list_of_distributions(s3_bucket, distributions)
+
+    return distribution != nil
+  end
+
+  def get_distribution_that_matches_s3_bucket_from_list_of_distributions(s3_bucket, distributions)
+    distributions.each { |distribution|
+      if(distribution[:cnames] != nil && distribution[:cnames].include?(s3_bucket)) then
+        return distribution
+      end
+    }
+
+    raise 'matching distribution not found'
+  end
+  
+  def create_cloudfront_distribution_or_return_existing(acf, found_bucket_cname)
+    distributions = acf.list_distributions
+
+    s3_bucket = get_s3_bucket_by_parsing__host_from_url()
+
+    distribution = get_distribution_that_matches_s3_bucket_from_list_of_distributions(s3_bucket, distributions)
+
+    if (!found_bucket_cname) then
+      puts "Creating Amazon CloudFront distribution."
       config = {
         :enabled              => true,
         :comment              => "http://#{s3_bucket}",
@@ -300,47 +398,86 @@ namespace :aws do
         :default_root_object  => 'index.html'
       }
       distributionID = acf.create_distribution(config)[:aws_id]
-      # Wait for distribution to be created... This can take a while!
+
       while (acf.get_distribution(distributionID)[:status] == 'InProgress')
-        puts "Still waiting for CloudFront distribution to be started..."
-        sleep 30
+        puts "Waiting for CloudFront distribution to populate all cdn caches.  This can take several minutes to complete.  Will check again in 60 seconds..."
+        sleep 60
       end
-      distribution = distributions.select { |distribution| distribution[:cnames].include?(s3_bucket) }.first
+
       puts "Distribution #{distributionID} created and ready to serve your blog"
-    else
-      distribution = distributions.first
-      puts "Distribution #{distribution[:aws_id]} found"
     end
+
     return distribution
   end
-  
-  def cloudfront_invalidate(aws_access_key_id, aws_secret_access_key, distribution, paths_to_invalidate)
-    if (paths_to_invalidate.empty?) then
-      return;
-    end
-    puts "Invalidating CloudFront caches"
-    logger = Logger.new(STDOUT)
-    logger.level = Logger::WARN
-    acf = RightAws::AcfInterface.new(aws_access_key_id, aws_secret_access_key, { :logger => logger })
-    acf.create_invalidation distribution[:aws_id], :path => paths_to_invalidate
+
+  def strip_www_dot_from_front_of_s3_bucket()
+    s3_bucket = get_s3_bucket_by_parsing__host_from_url()
+    s3_bucket_without_www_dot = s3_bucket.gsub(/www\./, '')
+
+    return s3_bucket_without_www_dot
+  end
+
+  def create_route_53_hosted_zone()
+    puts 'Creating Route53 Hosted Zone And Resource Record Sets'
+
+    route53 = create_route_53_facade()
+
+    s3_bucket_without_www_dot = strip_www_dot_from_front_of_s3_bucket()
+
+    create_hosted_zone_response_hash = route53.create_hosted_zone({:name   => s3_bucket_without_www_dot + '.'})
+
+    hosted_zone_id = create_hosted_zone_response_hash[:aws_id]
+
+    puts 'These are the four fully qualified domain names you need to enter into your domain registrars nameserver settings for your domain:'
+
+    list_of_name_servers = create_hosted_zone_response_hash[:name_servers]
+
+    list_of_name_servers.each { |name_server|
+      puts name_server
+    }
+
+    return hosted_zone_id
   end
   
-  desc "Deploy website to Amazon S3"
-  task :s3 do
-    puts "## Deploying website to Amazon S3"
-    aws = aws_init
-    s3_deploy(aws[:access_key_id], aws[:secret_access_key], aws[:s3_bucket], public_dir)
-    puts "\n## Amazon S3 deploy complete"
+  def invalidate_modified_cloudfront_paths(distribution, paths_to_invalidate, acf)
+    if (paths_to_invalidate != nil && !paths_to_invalidate.empty?) then
+      puts "Invalidating CloudFront caches"
+
+      acf.create_invalidation distribution[:aws_id], :path => paths_to_invalidate
+    end
+  end
+
+  def create_route_53_resource_record_sets(hosted_zone_id, cloudfront_distribution_url)
+    route53 = create_route_53_facade()
+    s3_bucket = get_s3_bucket_by_parsing__host_from_url()
+    s3_bucket_without_www_dot = strip_www_dot_from_front_of_s3_bucket()
+
+    resource_record_sets = [ { :name => s3_bucket + '.',
+                               :type => 'CNAME',
+                               :ttl => 600,
+                               :resource_records => cloudfront_distribution_url },
+                             { :name => s3_bucket_without_www_dot + '.',
+                               :type => 'A',
+                               :ttl => 600,
+                               :resource_records => ['174.129.25.170'] # use wwwizer to redirect to www
+                             }
+                           ]
+
+    route53.create_resource_record_sets(hosted_zone_id, resource_record_sets)
   end
 
   desc "Deploy website to Amazon CloudFront"
   task :cloudfront do
-    puts "## Deploying website to Amazon CloudFront"
-    aws = aws_init
-    distribution = cloudfront_init(aws[:access_key_id], aws[:secret_access_key], aws[:s3_bucket])
-    paths_to_invalidate = s3_deploy(aws[:access_key_id], aws[:secret_access_key], aws[:s3_bucket], public_dir)
-    cloudfront_invalidate(aws[:access_key_id], aws[:secret_access_key], distribution, paths_to_invalidate)
-    puts "\n## Amazon CloudFront deploy complete"
+    acf = create_cloudfront_facade()
+    found_bucket_cname = s3_bucket_exists(acf)
+    distribution = create_cloudfront_distribution_or_return_existing(acf, found_bucket_cname)
+    #paths_to_invalidate = deploy_modified_files_to_s3_and_return_list_of_paths_to_invalidate(public_dir)
+    #invalidate_modified_cloudfront_paths(distribution, paths_to_invalidate, acf)
+
+    #if(!found_bucket_cname) then
+      hosted_zone_id = create_route_53_hosted_zone()
+      create_route_53_resource_record_sets(hosted_zone_id, distribution[:domain_name])
+    #end
   end
 end
 
