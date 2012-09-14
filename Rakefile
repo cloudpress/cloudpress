@@ -471,13 +471,13 @@ namespace :aws do
     acf = create_cloudfront_facade()
     found_bucket_cname = s3_bucket_exists(acf)
     distribution = create_cloudfront_distribution_or_return_existing(acf, found_bucket_cname)
-    #paths_to_invalidate = deploy_modified_files_to_s3_and_return_list_of_paths_to_invalidate(public_dir)
-    #invalidate_modified_cloudfront_paths(distribution, paths_to_invalidate, acf)
+    paths_to_invalidate = deploy_modified_files_to_s3_and_return_list_of_paths_to_invalidate(public_dir)
+    invalidate_modified_cloudfront_paths(distribution, paths_to_invalidate, acf)
 
-    #if(!found_bucket_cname) then
+    if(!found_bucket_cname) then
       hosted_zone_id = create_route_53_hosted_zone()
       create_route_53_resource_record_sets(hosted_zone_id, distribution[:domain_name])
-    #end
+    end
   end
 end
 
