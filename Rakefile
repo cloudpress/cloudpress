@@ -468,13 +468,14 @@ namespace :aws do
 
   desc "Deploy website to Amazon CloudFront"
   task :cloudfront do
+    distribution = nil
     acf = create_cloudfront_facade()
-    found_bucket_cname = s3_bucket_cname_exists_in_cloudfront_distribution(acf)
-    distribution = create_cloudfront_distribution_or_return_existing(acf, found_bucket_cname)
     paths_to_invalidate = deploy_modified_files_to_s3_and_return_list_of_paths_to_invalidate(public_dir)
+    found_bucket_cname = s3_bucket_cname_exists_in_cloudfront_distribution(acf)
     
     if(!found_bucket_cname) then
       hosted_zone_id = create_route_53_hosted_zone()
+      distribution = create_cloudfront_distribution_or_return_existing(acf, found_bucket_cname)
       create_route_53_resource_record_sets(hosted_zone_id, distribution[:domain_name])
     else
       # no need to invdalidate cloudfront cache on first transfer
