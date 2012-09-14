@@ -470,7 +470,8 @@ namespace :aws do
     found_bucket_cname = s3_bucket_cname_exists_in_cloudfront_distribution(acf)
 
 	if(!found_bucket_cname) then
-	  distribution = create_cloudfront_distribution(acf)
+	  create_cloudfront_distribution(acf)
+	  distribution = load_existing_cloudfront_distribution(acf)
       hosted_zone_id = create_route_53_hosted_zone()
       create_route_53_resource_record_sets(hosted_zone_id, distribution[:domain_name])
     else
