@@ -400,7 +400,7 @@ namespace :aws do
       distributionID = acf.create_distribution(config)[:aws_id]
 
       while (acf.get_distribution(distributionID)[:status] == 'InProgress')
-        puts "Waiting for CloudFront distribution to be created.  This can take up to 15 minutes to complete.  Will check again in 60 seconds..."
+        puts "Waiting for CloudFront distribution to be created.  This can take up to 30 minutes to complete.  Will check again in 60 seconds..."
         sleep 60
       end
 
