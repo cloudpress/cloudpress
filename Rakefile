@@ -365,6 +365,15 @@ namespace :aws do
 
     s3_bucket = get_s3_bucket_by_parsing__host_from_url()
     distribution = get_distribution_that_matches_s3_bucket_from_list_of_distributions(s3_bucket, distributions)
+    
+    print 'distribution: '
+    print distribution
+    
+    cname_exists = distribution != nil
+    print 'cname_exists: '
+    print cname_exists
+    
+    exit
 
     return distribution != nil
   end
@@ -400,7 +409,7 @@ namespace :aws do
       distributionID = acf.create_distribution(config)[:aws_id]
 
       while (acf.get_distribution(distributionID)[:status] == 'InProgress')
-        puts "Waiting for CloudFront distribution to be created.  This can take up to 30 minutes to complete.  Will check again in 60 seconds..."
+        puts "Waiting for CloudFront distribution to populate all cdn caches.  This can take several minutes to complete.  Will check again in 60 seconds..."
         sleep 60
       end
 
@@ -428,7 +437,7 @@ namespace :aws do
 
     hosted_zone_id = create_hosted_zone_response_hash[:aws_id]
 
-    puts "These are the four fully qualified domain names you need to enter into your domain registrar's nameserver settings for your domain:"
+    puts 'These are the four fully qualified domain names you need to enter into your domain registrars nameserver settings for your domain:'
 
     list_of_name_servers = create_hosted_zone_response_hash[:name_servers]
 
@@ -468,15 +477,18 @@ namespace :aws do
 
   desc "Deploy website to Amazon CloudFront"
   task :cloudfront do
+    distribution = nil
+    
     acf = create_cloudfront_facade()
-    found_bucket_cname = s3_bucket_cname_exists_in_cloudfront_distribution(acf)
-    distribution = create_cloudfront_distribution_or_return_existing(acf, found_bucket_cname)
     paths_to_invalidate = deploy_modified_files_to_s3_and_return_list_of_paths_to_invalidate(public_dir)
-    invalidate_modified_cloudfront_paths(distribution, paths_to_invalidate, acf)
-
+    found_bucket_cname = s3_bucket_cname_exists_in_cloudfront_distribution(acf)
+    
     if(!found_bucket_cname) then
       hosted_zone_id = create_route_53_hosted_zone()
+      distribution = create_cloudfront_distribution_or_return_existing(acf, found_bucket_cname)
       create_route_53_resource_record_sets(hosted_zone_id, distribution[:domain_name])
+    else
+      invalidate_modified_cloudfront_paths(distribution, paths_to_invalidate, acf)
     end
   end
 end
