@@ -428,7 +428,7 @@ namespace :aws do
 
     hosted_zone_id = create_hosted_zone_response_hash[:aws_id]
 
-    puts 'These are the four fully qualified domain names you need to enter into your domain registrars nameserver settings for your domain:'
+    puts "These are the four fully qualified domain names you need to enter into your domain registrar's nameserver settings for your domain:"
 
     list_of_name_servers = create_hosted_zone_response_hash[:name_servers]
 
