@@ -394,7 +394,7 @@ namespace :aws do
 	  :default_root_object  => 'index.html'
     }
   
-    acf.create_distribution(config)
+    distributionID = acf.create_distribution(config)[:aws_id]
 
     while (acf.get_distribution(distributionID)[:status] == 'InProgress')
       puts "Waiting for CloudFront distribution to be created.  This can take up to 30 minutes to complete.  Will check again in 60 seconds..."
