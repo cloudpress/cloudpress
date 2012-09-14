@@ -305,7 +305,7 @@ namespace :aws do
   end
 
   def create_bucket_as_website()
-    puts "## Creating S3 Bucket"
+    puts 'Configurating S3 bucket as a website'
 
     s3_bucket = get_s3_bucket_by_parsing__host_from_url()
     s3 = create_s3_facade()
@@ -313,8 +313,6 @@ namespace :aws do
 
     storage = create_appfog_s3_facade()
     storage.put_bucket_website(s3_bucket, "index.html", :key => "404.html")
-
-    puts "\n## Amazon S3 Bucket Creation Complete"
   end
 
   def retrieve_s3_bucket(s3_bucket)
