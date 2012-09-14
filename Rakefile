@@ -376,7 +376,7 @@ namespace :aws do
       end
     }
 
-    raise 'matching distribution not found'
+    return nil
   end
   
   def create_cloudfront_distribution_or_return_existing(acf, found_bucket_cname)
