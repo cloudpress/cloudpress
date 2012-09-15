@@ -19,3 +19,6 @@ node_modules
 .idea
 *.iml
 *.lock
+sass
+source
+Gemfile.lock
