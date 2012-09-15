@@ -439,7 +439,14 @@ namespace :aws do
     if (paths_to_invalidate != nil && !paths_to_invalidate.empty?) then
       puts "Invalidating CloudFront caches"
 
-      acf.create_invalidation distribution[:aws_id], :path => paths_to_invalidate
+      invalidationResponseHash = acf.create_invalidation distribution[:aws_id], :path => paths_to_invalidate
+
+      distributionID = invalidationResponseHash[:aws_id]
+
+      while (acf.get_distribution(distributionID)[:status] == 'InProgress')
+        puts "Waiting for CloudFront invalidation to complete.  This can take up to 30 minutes to complete.  Will check again in 60 seconds..."
+        sleep 60
+      end
     end
   end
 
