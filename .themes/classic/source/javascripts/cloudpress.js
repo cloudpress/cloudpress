@@ -49,3 +49,5 @@
     {% include javascripts/twitter.js %}
     getTwitterFeed("{{site.twitter_user}}", {{site.twitter_tweet_count}}, {{site.twitter_show_replies}});
 {% endif %}
+
+{% include google_analytics.html %}
