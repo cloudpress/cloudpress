@@ -462,7 +462,15 @@ namespace :aws do
     route53.create_resource_record_sets(hosted_zone_id, resource_record_sets)
   end
 
-  desc "Deploy website to Amazon CloudFront"
+  desc "Deploy website to AWS S3"
+  task :s3 do
+    deploy_modified_files_to_s3_and_return_list_of_paths_to_invalidate(public_dir)
+    s3_bucket = get_s3_bucket_by_parsing__host_from_url()
+
+    puts "Blog deployed to s3 for testing prior to cloudfront deployment at: " + s3_bucket + ".s3-website-us-east-1.amazonaws.com/"
+  end
+
+  desc "Deploy website to AWS CloudFront"
   task :cloudfront do
     acf = create_cloudfront_facade()
     paths_to_invalidate = deploy_modified_files_to_s3_and_return_list_of_paths_to_invalidate(public_dir)
