@@ -7,6 +7,7 @@ require "mime/types"
 require "uri"
 require 'pp'
 require 'fog' # we need appfog's aws ruby sdk since right_aws doesn't support setting an s3 bucket as a website yet
+require 'set'
 
 ## -- Rsync Deploy config -- ##
 # Be sure your public key is listed in your server's ~/.ssh/authorized_keys file
@@ -247,6 +248,7 @@ task :rsync do
 end
 
 namespace :aws do
+  S3_INVALIDATION_PATHS_CACHE_FILENAME = 's3_invalidation_paths_cache'
 
   def get_s3_bucket_by_parsing__host_from_url()
     config = YAML::load(File.open('_config.yml'))
@@ -284,7 +286,6 @@ namespace :aws do
   def create_appfog_s3_facade()
     config = YAML::load(File.open('_config.yml'))
 
-    # TODO: consider other regions as a config option
     storage = Fog::Storage.new({
                                    :provider => 'AWS',
                                    :aws_access_key_id => config['aws_access_key_id'],
@@ -320,6 +321,64 @@ namespace :aws do
     return s3.bucket(s3_bucket, true, 'public-read')
   end
 
+  def read_invalidation_paths_cache_file_into_set()
+    previous_paths_to_invalidate = Set.new
+
+    File.open(S3_INVALIDATION_PATHS_CACHE_FILENAME, 'r') do |file|
+      file.each_line do |line|
+        previous_paths_to_invalidate.add line
+      end
+    end
+
+    return previous_paths_to_invalidate
+  end
+
+  def read_invalidation_paths_cache_file_into_array()
+    invalidation_set = read_invalidation_paths_cache_file_into_set()
+
+    return invalidation_set.to_a()
+  end
+
+  def append_array_elements_to_file_if_not_already_present(existing_elements_set, new_elements_array)
+    File.open(S3_INVALIDATION_PATHS_CACHE_FILENAME, 'a') do |file|
+      new_elements_array.each do |path|
+        if(!existing_elements_set.include? path)
+          file.puts path
+        end
+      end
+    end
+  end
+
+  def delete_invalidation_paths_cache_file()
+    puts "Deleting invalidation paths cache file."
+
+    File.delete(S3_INVALIDATION_PATHS_CACHE_FILENAME)
+  end
+
+  def write_array_elements_into_new_invalidation_paths_cache_file(paths_to_invalidate)
+    File.open(S3_INVALIDATION_PATHS_CACHE_FILENAME, 'w') do |file|
+      paths_to_invalidate.each do |path|
+        file.puts path
+      end
+    end
+  end
+
+  def write_invalidation_paths_cache_file(paths_to_invalidate)
+    puts "Writing invalidation paths to cache file to use during later cloudfront deploy"
+
+    if(File.exists? invalidation_filename)
+      puts "Existing invalidation paths found.  Appending to the set."
+
+      previous_paths_to_invalidate = read_invalidation_paths_cache_file_into_set()
+
+      append_array_elements_to_file_if_not_already_present(previous_paths_to_invalidate, paths_to_invalidate)
+    else
+      puts "Existing invalidation paths not found.  Creating cache file."
+
+      write_array_elements_into_new_invalidation_paths_cache_file(paths_to_invalidate)
+    end
+  end
+
   def deploy_modified_files_to_s3_and_return_list_of_paths_to_invalidate(public_dir)
     s3_bucket = get_s3_bucket_by_parsing__host_from_url()
     paths_to_invalidate = []
@@ -353,6 +412,8 @@ namespace :aws do
     if (!any_files_deployed) then
       puts 'No Files Changed.  Your blog is already up to date.'
       exit
+    else
+      write_invalidation_paths_cache_file(paths_to_invalidate)
     end
 
     return paths_to_invalidate
@@ -435,7 +496,9 @@ namespace :aws do
     return hosted_zone_id
   end
 
-  def invalidate_modified_cloudfront_paths(distribution, paths_to_invalidate, acf)
+  def invalidate_modified_cloudfront_paths(distribution, acf)
+    paths_to_invalidate = read_invalidation_paths_cache_file_into_array()
+
     if (paths_to_invalidate != nil && !paths_to_invalidate.empty?) then
       puts "Invalidating CloudFront caches"
 
@@ -443,10 +506,18 @@ namespace :aws do
 
       distributionID = invalidationResponseHash[:aws_id]
 
+      puts "Invalidating the following files on cloudfront:"
+
+      paths_to_invalidate.each do |path|
+        puts path
+      end
+
       while (acf.get_distribution(distributionID)[:status] == 'InProgress')
         puts "Waiting for CloudFront invalidation to complete.  This can take up to 30 minutes to complete.  Will check again in 60 seconds..."
         sleep 60
       end
+
+      delete_invalidation_paths_cache_file()
     end
   end
 
