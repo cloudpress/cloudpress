@@ -366,7 +366,7 @@ namespace :aws do
   def write_invalidation_paths_cache_file(paths_to_invalidate)
     puts "Writing invalidation paths to cache file to use during later cloudfront deploy"
 
-    if(File.exists? invalidation_filename)
+    if(File.exists? S3_INVALIDATION_PATHS_CACHE_FILENAME)
       puts "Existing invalidation paths found.  Appending to the set."
 
       previous_paths_to_invalidate = read_invalidation_paths_cache_file_into_set()
